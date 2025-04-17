@@ -8,17 +8,18 @@ from flask import Flask, request, url_for, session, redirect, render_template
 import pandas as pd
 import plotly
 import plotly.express as px
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 
-app.secret_key = "your_secret_key"
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 app.config['SESSION_COOKIE_NAME'] = 'Spotify Cookie'
 app.config['SESSION_TYPE'] = 'filesystem'
 
 # Spotify API credentials
-CLIENT_ID = "your_client_id"
-CLIENT_SECRET = "your_client_secret"
-REDIRECT_URI = "http://localhost:8000/callback"
+CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
+CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
+REDIRECT_URI = "http://localhost:5000/callback"
 SCOPE = "user-read-recently-played user-top-read user-read-currently-playing user-read-playback-state"
 
 @app.route('/')
@@ -200,4 +201,4 @@ def get_token():
     return token_info
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
