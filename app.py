@@ -13,6 +13,8 @@ import calendar
 from collections import Counter
 from dotenv import load_dotenv
 
+load_dotenv()  # Make sure environment variables are loaded
+
 app = Flask(__name__)
 
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
@@ -44,6 +46,7 @@ def callback():
     session["token_info"] = token_info
     return redirect('/visualize')
 
+# Add the missing visualize route
 @app.route('/visualize')
 def visualize():
     try:
@@ -56,155 +59,159 @@ def visualize():
     # Get the current year
     current_year = datetime.datetime.now().year
     
-    # Get user's top artists for different time ranges
-    top_artists_short = sp.current_user_top_artists(limit=50, time_range='short_term')
-    top_artists_medium = sp.current_user_top_artists(limit=50, time_range='medium_term')
-    top_artists_long = sp.current_user_top_artists(limit=50, time_range='long_term')
-    
-    # Get recently played tracks
-    recent_tracks = sp.current_user_recently_played(limit=50)
-    
-    # We'll need to make multiple calls to build up our listening history
-    # This is a simplified version; in production, you'd use a database to store this data
-    all_tracks = []
-    
-    # Get as many recent tracks as possible (up to API limits)
-    after = None
-    for _ in range(10):  # Try to get 10 pages of history
-        try:
-            if after:
-                tracks = sp.current_user_recently_played(limit=50, after=after)
-            else:
-                tracks = sp.current_user_recently_played(limit=50)
-                
-            if not tracks['items']:
-                break
-                
-            all_tracks.extend(tracks['items'])
-            
-            # Get cursor for next page
-            after = tracks['cursors']['after']
-            
-            # Sleep to avoid hitting rate limits
-            time.sleep(1)
-        except Exception as e:
-            print(f"Error fetching tracks: {e}")
-            break
-    
-    # Process the data for visualization
-    monthly_data = process_monthly_data(sp, all_tracks, current_year)
-    
-    # Create visualizations
-    visualizations = create_visualizations(sp, top_artists_short, top_artists_medium, 
-                                        top_artists_long, monthly_data)
-    
-    return render_template('visualize.html', 
-                          user_name=sp.me()['display_name'],
-                          current_year=current_year,
-                          monthly_data=monthly_data,
-                          yearly_artists_chart=visualizations['yearly_artists'],
-                          genres_chart=visualizations['genres'],
-                          listening_patterns_chart=visualizations['listening_patterns'])
+    try:
+        # Get user's top artists for different time ranges
+        top_artists_short = sp.current_user_top_artists(limit=50, time_range='short_term')
+        top_artists_medium = sp.current_user_top_artists(limit=50, time_range='medium_term')
+        top_artists_long = sp.current_user_top_artists(limit=50, time_range='long_term')
+        
+        # Get user's top tracks for different time ranges
+        top_tracks_short = sp.current_user_top_tracks(limit=50, time_range='short_term')
+        top_tracks_medium = sp.current_user_top_tracks(limit=50, time_range='medium_term')
+        top_tracks_long = sp.current_user_top_tracks(limit=50, time_range='long_term')
+        
+        # Process the data for time periods
+        short_term_data = process_time_period_data(sp, top_artists_short, top_tracks_short, 3)
+        medium_term_data = process_time_period_data(sp, top_artists_medium, top_tracks_medium, 3)
+        long_term_data = process_time_period_data(sp, top_artists_long, top_tracks_long, 3)
+        
+        # Create visualizations
+        visualizations = create_visualizations(sp, top_artists_short, top_artists_medium, top_artists_long)
+        
+        return render_template('visualize.html', 
+                              user_name=sp.me()['display_name'],
+                              current_year=current_year,
+                              short_term_data=short_term_data,
+                              medium_term_data=medium_term_data,
+                              long_term_data=long_term_data,
+                              yearly_artists_chart=visualizations['yearly_artists'],
+                              genres_chart=visualizations['genres'],
+                              listening_patterns_chart=visualizations['listening_patterns'])
+    except Exception as e:
+        print(f"Error in visualize route: {e}")
+        # Provide empty data structures to avoid template errors
+        empty_data = {'artists': [], 'tracks': []}
+        empty_chart = json.dumps({})
+        
+        return render_template('visualize.html',
+                              user_name=sp.me()['display_name'],
+                              current_year=current_year,
+                              short_term_data=empty_data,
+                              medium_term_data=empty_data,
+                              long_term_data=empty_data,
+                              yearly_artists_chart=empty_chart,
+                              genres_chart=empty_chart,
+                              listening_patterns_chart=empty_chart)
 
-def process_monthly_data(sp, tracks, current_year):
-    """Process tracks to get monthly top artists data."""
-    # Initialize monthly data
-    months = []
-    for month_num in range(1, 13):
-        month_name = calendar.month_name[month_num]
-        months.append({
-            'name': month_name,
-            'number': month_num,
-            'artists': [],
-            'track_count': 0,
-            'artist_plays': Counter()
+def process_time_period_data(sp, artists_data, tracks_data, limit=3):
+    """Process artist and track data for a specific time period."""
+    result = {
+        'artists': [],
+        'tracks': []
+    }
+    
+    # Process top artists
+    for i, artist in enumerate(artists_data['items'][:limit]):
+        # Get artist image or use placeholder
+        image_url = artist['images'][0]['url'] if artist['images'] else '/static/placeholder.png'
+        
+        # Get top genres (limit to 3)
+        top_genres = artist['genres'][:3] if artist['genres'] else []
+        
+        result['artists'].append({
+            'id': artist['id'],
+            'name': artist['name'],
+            'image_url': image_url,
+            'popularity': artist['popularity'],
+            'top_genres': top_genres
         })
     
-    # Group tracks by month and count artist plays
-    for item in tracks:
-        track = item['track']
-        artist_id = track['artists'][0]['id']
-        artist_name = track['artists'][0]['name']
+    # Process top tracks
+    for i, track in enumerate(tracks_data['items'][:limit]):
+        # Get album image or use placeholder
+        album_image = track['album']['images'][0]['url'] if track['album']['images'] else '/static/placeholder.png'
         
-        # Parse the played_at timestamp
-        played_at = datetime.datetime.strptime(item['played_at'], "%Y-%m-%dT%H:%M:%S.%fZ")
-        
-        # Skip if not from the current year
-        if played_at.year != current_year:
-            continue
-            
-        # Add to monthly counts
-        month_index = played_at.month - 1  # 0-based index
-        months[month_index]['track_count'] += 1
-        months[month_index]['artist_plays'][artist_id] += 1
+        result['tracks'].append({
+            'id': track['id'],
+            'name': track['name'],
+            'artist': track['artists'][0]['name'],
+            'album': track['album']['name'],
+            'album_image': album_image,
+            'popularity': track['popularity']
+        })
     
-    # Get the top 3 artists for each month
-    for month in months:
-        if month['artist_plays']:
-            # Get top 3 artist IDs
-            top_artist_ids = [artist_id for artist_id, _ in month['artist_plays'].most_common(3)]
-            
-            # Get detailed artist info
-            for i, artist_id in enumerate(top_artist_ids):
-                try:
-                    artist_info = sp.artist(artist_id)
-                    
-                    # Get artist image or use placeholder
-                    image_url = artist_info['images'][0]['url'] if artist_info['images'] else '/static/placeholder.png'
-                    
-                    # Get top genres (limit to 3)
-                    top_genres = artist_info['genres'][:3] if artist_info['genres'] else []
-                    
-                    month['artists'].append({
-                        'id': artist_id,
-                        'name': artist_info['name'],
-                        'image_url': image_url,
-                        'popularity': artist_info['popularity'],
-                        'play_count': month['artist_plays'][artist_id],
-                        'top_genres': top_genres
-                    })
-                except Exception as e:
-                    print(f"Error fetching artist {artist_id}: {e}")
-                    continue
-    
-    return months
+    return result
 
-def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists_long, monthly_data):
+def process_time_period_data(sp, artists_data, tracks_data, limit=3):
+    """Process artist and track data for a specific time period."""
+    result = {
+        'artists': [],
+        'tracks': []
+    }
+    
+    # Process top artists
+    for i, artist in enumerate(artists_data['items'][:limit]):
+        # Get artist image or use placeholder
+        image_url = artist['images'][0]['url'] if artist['images'] else '/static/placeholder.png'
+        
+        # Get top genres (limit to 3)
+        top_genres = artist['genres'][:3] if artist['genres'] else []
+        
+        result['artists'].append({
+            'id': artist['id'],
+            'name': artist['name'],
+            'image_url': image_url,
+            'popularity': artist['popularity'],
+            'top_genres': top_genres
+        })
+    
+    # Process top tracks
+    for i, track in enumerate(tracks_data['items'][:limit]):
+        # Get album image or use placeholder
+        album_image = track['album']['images'][0]['url'] if track['album']['images'] else '/static/placeholder.png'
+        
+        result['tracks'].append({
+            'id': track['id'],
+            'name': track['name'],
+            'artist': track['artists'][0]['name'],
+            'album': track['album']['name'],
+            'album_image': album_image,
+            'popularity': track['popularity']
+        })
+    
+    return result
+
+def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists_long):
     """Create visualizations from processed data."""
     visualizations = {}
     
-    # Create yearly top artists chart
-    yearly_artist_plays = Counter()
-    for month in monthly_data:
-        for artist_id, count in month['artist_plays'].items():
-            yearly_artist_plays[artist_id] += count
-    
-    # Get top 10 artists of the year
-    top_yearly_artists = []
-    for artist_id, count in yearly_artist_plays.most_common(10):
-        try:
-            artist_info = sp.artist(artist_id)
-            top_yearly_artists.append({
-                'id': artist_id,
-                'name': artist_info['name'],
-                'play_count': count
-            })
-        except:
-            continue
+    # Create top artists chart from medium-term (as yearly overview)
+    top_medium_artists = []
+    for i, artist in enumerate(top_artists_medium['items'][:10]):
+        top_medium_artists.append({
+            'name': artist['name'],
+            'popularity': artist['popularity']
+        })
     
     # Create year overview chart
-    if top_yearly_artists:
-        df_yearly = pd.DataFrame(top_yearly_artists)
+    if top_medium_artists:
+        df_yearly = pd.DataFrame(top_medium_artists)
         fig_yearly = px.bar(df_yearly, 
                            x='name', 
-                           y='play_count', 
-                           title=f'Your Top Artists of {datetime.datetime.now().year}',
-                           labels={'name': 'Artist', 'play_count': 'Play Count'})
-        fig_yearly.update_layout(xaxis_tickangle=-45)
+                           y='popularity', 
+                           title=f'Your Top Artists (6-Month Overview)',
+                           labels={'name': 'Artist', 'popularity': 'Popularity Score'})
+        fig_yearly.update_layout(
+            xaxis_tickangle=-45,
+            plot_bgcolor='rgba(40,40,40,0.8)',
+            paper_bgcolor='rgba(40,40,40,0)',
+            font=dict(color='white'),
+            margin=dict(l=50, r=20, t=50, b=100),
+        )
         visualizations['yearly_artists'] = json.dumps(fig_yearly, cls=plotly.utils.PlotlyJSONEncoder)
     else:
         # Create empty chart if no data
-        fig_yearly = px.bar(x=[], y=[], title=f'Your Top Artists of {datetime.datetime.now().year}')
+        fig_yearly = px.bar(x=[], y=[], title=f'Your Top Artists (6-Month Overview)')
         visualizations['yearly_artists'] = json.dumps(fig_yearly, cls=plotly.utils.PlotlyJSONEncoder)
     
     # Create genre chart from medium-term top artists
@@ -219,21 +226,42 @@ def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists
         fig_genres = px.pie(df_genres, 
                            values='count', 
                            names='genre', 
-                           title='Your Top Genres')
+                           title='Your Top Genres',
+                           color_discrete_sequence=px.colors.sequential.Viridis)
+        fig_genres.update_layout(
+            plot_bgcolor='rgba(40,40,40,0.8)',
+            paper_bgcolor='rgba(40,40,40,0)',
+            font=dict(color='white')
+        )
         visualizations['genres'] = json.dumps(fig_genres, cls=plotly.utils.PlotlyJSONEncoder)
     else:
         fig_genres = px.pie(values=[], names=[], title='Your Top Genres')
         visualizations['genres'] = json.dumps(fig_genres, cls=plotly.utils.PlotlyJSONEncoder)
     
-    # Create monthly listening patterns chart
-    monthly_counts = [month['track_count'] for month in monthly_data]
-    month_names = [month['name'] for month in monthly_data]
+    # Create listening patterns chart comparing time periods
+    # Get counts of top artists in each time period
+    short_term_count = len(top_artists_short['items'])
+    medium_term_count = len(top_artists_medium['items'])
+    long_term_count = len(top_artists_long['items'])
     
-    fig_patterns = px.line(x=month_names, 
-                          y=monthly_counts, 
-                          title='Your Listening Activity by Month',
-                          labels={'x': 'Month', 'y': 'Tracks Played'})
-    fig_patterns.update_layout(xaxis_tickangle=-45)
+    # Create a comparative visualization
+    time_periods = ['Last 4 Weeks', 'Last 6 Months', 'All Time']
+    artist_counts = [short_term_count, medium_term_count, long_term_count]
+    
+    fig_patterns = px.bar(
+        x=time_periods,
+        y=artist_counts,
+        title='Your Listening Diversity Across Time Periods',
+        labels={'x': 'Time Period', 'y': 'Number of Unique Artists'},
+        color=artist_counts,
+        color_continuous_scale='Viridis'
+    )
+    fig_patterns.update_layout(
+        plot_bgcolor='rgba(40,40,40,0.8)',
+        paper_bgcolor='rgba(40,40,40,0)',
+        font=dict(color='white'),
+        margin=dict(l=50, r=20, t=50, b=50),
+    )
     visualizations['listening_patterns'] = json.dumps(fig_patterns, cls=plotly.utils.PlotlyJSONEncoder)
     
     return visualizations
