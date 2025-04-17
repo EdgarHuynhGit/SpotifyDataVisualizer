@@ -1,0 +1,196 @@
+<!-- templates/visualize.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Spotify Data | Monthly Top Artists</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body {
+            background-color: #191414;
+            color: #FFFFFF;
+            font-family: 'Circular', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+        .navbar {
+            background-color: #1DB954;
+        }
+        .card {
+            background-color: #282828;
+            border: none;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .card-header {
+            background-color: #333333;
+            color: white;
+            border-bottom: none;
+        }
+        .month-card {
+            transition: transform 0.3s ease;
+        }
+        .month-card:hover {
+            transform: translateY(-5px);
+        }
+        .artist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #333333;
+            border-radius: 8px;
+        }
+        .artist-item img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin-right: 15px;
+            object-fit: cover;
+        }
+        .artist-rank {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 30px;
+            height: 30px;
+            background-color: #1DB954;
+            border-radius: 50%;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        .artist-info {
+            flex-grow: 1;
+        }
+        .top-artist-1 {
+            border-left: 4px solid gold;
+        }
+        .top-artist-2 {
+            border-left: 4px solid silver;
+        }
+        .top-artist-3 {
+            border-left: 4px solid #cd7f32; /* bronze */
+        }
+        .play-count {
+            background-color: rgba(29, 185, 84, 0.3);
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        .summary-charts {
+            margin-bottom: 40px;
+        }
+        .badge-genre {
+            background-color: #1DB954;
+            color: white;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Spotify Data Visualizer</a>
+            <span class="navbar-text">
+                Welcome, {{ user_name }}!
+            </span>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h1 class="mb-4">Your Top Artists by Month ({{ current_year }})</h1>
+        
+        <!-- Summary Charts Section -->
+        <div class="row summary-charts">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Year Overview: Top Artists</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="yearly-artists-chart"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Genre Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="genres-chart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Monthly Breakdown -->
+        <h2 class="mb-4">Monthly Breakdown</h2>
+        
+        <div class="row">
+            {% for month in monthly_data %}
+            <div class="col-md-4 mb-4">
+                <div class="card month-card">
+                    <div class="card-header">
+                        <h5>{{ month.name }}</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if month.artists %}
+                            {% for artist in month.artists %}
+                            <div class="artist-item top-artist-{{ loop.index }}">
+                                <div class="artist-rank">{{ loop.index }}</div>
+                                <img src="{{ artist.image_url }}" alt="{{ artist.name }}">
+                                <div class="artist-info">
+                                    <h6 class="mb-1">{{ artist.name }}</h6>
+                                    <span class="play-count">{{ artist.play_count }} plays</span>
+                                    <div class="mt-1">
+                                        {% for genre in artist.top_genres %}
+                                        <span class="badge badge-genre">{{ genre }}</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-center text-muted">No listening data for this month</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Listening Patterns -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Your Listening Patterns Throughout {{ current_year }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="listening-patterns-chart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="text-center mt-5 pb-3">
+        <p>Created with Flask, Spotify API & Plotly</p>
+    </footer>
+
+    <script>
+        // Parse and render charts
+        var yearlyArtistsData = JSON.parse({{ yearly_artists_chart | safe }});
+        Plotly.newPlot('yearly-artists-chart', yearlyArtistsData.data, yearlyArtistsData.layout);
+        
+        var genresData = JSON.parse({{ genres_chart | safe }});
+        Plotly.newPlot('genres-chart', genresData.data, genresData.layout);
+        
+        var listeningPatternsData = JSON.parse({{ listening_patterns_chart | safe }});
+        Plotly.newPlot('listening-patterns-chart', listeningPatternsData.data, listeningPatternsData.layout);
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
