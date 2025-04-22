@@ -1,4 +1,4 @@
-!-- templates/visualize.html -->
+<!-- templates/visualize.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -121,17 +121,7 @@
         
         <!-- Summary Charts Section -->
         <div class="row summary-charts">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Year Overview: Top Artists</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="yearly-artists-chart"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
                         <h5>Genre Distribution</h5>
@@ -320,21 +310,13 @@
     <script>
         // Parse and render charts with error handling
         try {
-            var yearlyArtistsData = JSON.parse({{ yearly_artists_chart | tojson | safe }});
-            if (yearlyArtistsData && yearlyArtistsData.data) {
-                Plotly.newPlot('yearly-artists-chart', yearlyArtistsData.data, yearlyArtistsData.layout);
-            }
-        } catch (e) {
-            console.error("Error rendering yearly artists chart:", e);
-        }
-        
-        try {
             var genresData = JSON.parse({{ genres_chart | tojson | safe }});
             if (genresData && genresData.data) {
                 Plotly.newPlot('genres-chart', genresData.data, genresData.layout);
             }
         } catch (e) {
             console.error("Error rendering genres chart:", e);
+            document.getElementById('genres-chart').innerHTML = '<p class="text-center text-muted">Chart unavailable</p>';
         }
         
         try {
@@ -344,6 +326,7 @@
             }
         } catch (e) {
             console.error("Error rendering listening patterns chart:", e);
+            document.getElementById('listening-patterns-chart').innerHTML = '<p class="text-center text-muted">Chart unavailable</p>';
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>

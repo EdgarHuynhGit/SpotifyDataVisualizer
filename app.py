@@ -84,14 +84,16 @@ def visualize():
                               short_term_data=short_term_data,
                               medium_term_data=medium_term_data,
                               long_term_data=long_term_data,
-                              yearly_artists_chart=visualizations['yearly_artists'],
                               genres_chart=visualizations['genres'],
                               listening_patterns_chart=visualizations['listening_patterns'])
     except Exception as e:
         print(f"Error in visualize route: {e}")
         # Provide empty data structures to avoid template errors
         empty_data = {'artists': [], 'tracks': []}
-        empty_chart = json.dumps({})
+        
+        # Create valid empty charts
+        empty_fig = px.bar(x=[], y=[], title='Empty Chart')
+        empty_chart = json.dumps(empty_fig, cls=plotly.utils.PlotlyJSONEncoder)
         
         return render_template('visualize.html',
                               user_name=sp.me()['display_name'],
@@ -99,48 +101,8 @@ def visualize():
                               short_term_data=empty_data,
                               medium_term_data=empty_data,
                               long_term_data=empty_data,
-                              yearly_artists_chart=empty_chart,
                               genres_chart=empty_chart,
                               listening_patterns_chart=empty_chart)
-
-def process_time_period_data(sp, artists_data, tracks_data, limit=3):
-    """Process artist and track data for a specific time period."""
-    result = {
-        'artists': [],
-        'tracks': []
-    }
-    
-    # Process top artists
-    for i, artist in enumerate(artists_data['items'][:limit]):
-        # Get artist image or use placeholder
-        image_url = artist['images'][0]['url'] if artist['images'] else '/static/placeholder.png'
-        
-        # Get top genres (limit to 3)
-        top_genres = artist['genres'][:3] if artist['genres'] else []
-        
-        result['artists'].append({
-            'id': artist['id'],
-            'name': artist['name'],
-            'image_url': image_url,
-            'popularity': artist['popularity'],
-            'top_genres': top_genres
-        })
-    
-    # Process top tracks
-    for i, track in enumerate(tracks_data['items'][:limit]):
-        # Get album image or use placeholder
-        album_image = track['album']['images'][0]['url'] if track['album']['images'] else '/static/placeholder.png'
-        
-        result['tracks'].append({
-            'id': track['id'],
-            'name': track['name'],
-            'artist': track['artists'][0]['name'],
-            'album': track['album']['name'],
-            'album_image': album_image,
-            'popularity': track['popularity']
-        })
-    
-    return result
 
 def process_time_period_data(sp, artists_data, tracks_data, limit=3):
     """Process artist and track data for a specific time period."""
@@ -185,35 +147,6 @@ def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists
     """Create visualizations from processed data."""
     visualizations = {}
     
-    # Create top artists chart from medium-term (as yearly overview)
-    top_medium_artists = []
-    for i, artist in enumerate(top_artists_medium['items'][:10]):
-        top_medium_artists.append({
-            'name': artist['name'],
-            'popularity': artist['popularity']
-        })
-    
-    # Create year overview chart
-    if top_medium_artists:
-        df_yearly = pd.DataFrame(top_medium_artists)
-        fig_yearly = px.bar(df_yearly, 
-                           x='name', 
-                           y='popularity', 
-                           title=f'Your Top Artists (6-Month Overview)',
-                           labels={'name': 'Artist', 'popularity': 'Popularity Score'})
-        fig_yearly.update_layout(
-            xaxis_tickangle=-45,
-            plot_bgcolor='rgba(40,40,40,0.8)',
-            paper_bgcolor='rgba(40,40,40,0)',
-            font=dict(color='white'),
-            margin=dict(l=50, r=20, t=50, b=100),
-        )
-        visualizations['yearly_artists'] = json.dumps(fig_yearly, cls=plotly.utils.PlotlyJSONEncoder)
-    else:
-        # Create empty chart if no data
-        fig_yearly = px.bar(x=[], y=[], title=f'Your Top Artists (6-Month Overview)')
-        visualizations['yearly_artists'] = json.dumps(fig_yearly, cls=plotly.utils.PlotlyJSONEncoder)
-    
     # Create genre chart from medium-term top artists
     genres_count = Counter()
     for artist in top_artists_medium['items']:
@@ -253,14 +186,15 @@ def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists
         y=artist_counts,
         title='Your Listening Diversity Across Time Periods',
         labels={'x': 'Time Period', 'y': 'Number of Unique Artists'},
-        color=artist_counts,
-        color_continuous_scale='Viridis'
+        color_discrete_sequence=['#1DB954']  # Solid Spotify green
     )
+    # Remove color bar/legend
     fig_patterns.update_layout(
         plot_bgcolor='rgba(40,40,40,0.8)',
         paper_bgcolor='rgba(40,40,40,0)',
         font=dict(color='white'),
         margin=dict(l=50, r=20, t=50, b=50),
+        coloraxis_showscale=False
     )
     visualizations['listening_patterns'] = json.dumps(fig_patterns, cls=plotly.utils.PlotlyJSONEncoder)
     
