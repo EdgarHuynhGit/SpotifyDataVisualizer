@@ -181,12 +181,17 @@ def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists
     time_periods = ['Last 4 Weeks', 'Last 6 Months', 'All Time']
     artist_counts = [short_term_count, medium_term_count, long_term_count]
     
+    listening_df = pd.DataFrame({
+    'Time Period': time_periods,
+    'Number of Unique Artists': artist_counts
+    })
+    
     fig_patterns = px.bar(
-        x=time_periods,
-        y=artist_counts,
+        listening_df,
+        x='Time Period',
+        y='Number of Unique Artists',
         title='Your Listening Diversity Across Time Periods',
-        labels={'x': 'Time Period', 'y': 'Number of Unique Artists'},
-        color_discrete_sequence=['#1DB954']  # Solid Spotify green
+        color_discrete_sequence=['#1DB954']
     )
     # Remove color bar/legend
     fig_patterns.update_layout(
