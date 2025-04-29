@@ -13,6 +13,8 @@ import calendar
 from collections import Counter
 from dotenv import load_dotenv
 
+current_year = datetime.datetime.now().year
+
 load_dotenv()  # Make sure environment variables are loaded
 
 app = Flask(__name__)
