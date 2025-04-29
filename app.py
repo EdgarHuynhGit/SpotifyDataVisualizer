@@ -13,6 +13,9 @@ import calendar
 from collections import Counter
 from dotenv import load_dotenv
 
+print(f"CLIENT_ID loaded: {os.getenv('SPOTIFY_CLIENT_ID') is not None}")
+print(f"CLIENT_SECRET loaded: {os.getenv('SPOTIFY_CLIENT_SECRET') is not None}")
+
 load_dotenv()  # Make sure environment variables are loaded
 
 app = Flask(__name__)
@@ -33,10 +36,14 @@ def index():
 
 @app.route('/login')
 def login():
-    sp_oauth = create_spotify_oauth()
-    auth_url = sp_oauth.get_authorize_url()
-    return redirect(auth_url)
-
+    try:
+        sp_oauth = create_spotify_oauth()
+        auth_url = sp_oauth.get_authorize_url()
+        return redirect(auth_url)
+    except Exception as e:
+        print(f"Login error: {e}")
+        return render_template('error.html', error=str(e))
+    
 @app.route('/callback')
 def callback():
     sp_oauth = create_spotify_oauth()

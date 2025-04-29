@@ -69,10 +69,7 @@
             </div>
         </div>
     </div>
-    
-    <footer class="text-center mt-5 pb-3">
-        <p>Created with Flask & Spotify API</p>
-    </footer>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
@@ -109,82 +106,7 @@
         }
     </style>
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark mb-4">
-        <div class="container">
-            <a class="navbar-brand" href="/">Spotify Data Visualizer</a>
-            <span class="navbar-text">
-                Welcome, {{ user_name }}!
-            </span>
-        </div>
-    </nav>
-    
-    <div class="container">
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Top Artists</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="top-artists-chart"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Top Tracks</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="top-tracks-chart"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Genre Distribution</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="genres-chart"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5>Listening Patterns</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="listening-patterns-chart"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <footer class="text-center mt-4 pb-3">
-        <p>Created with Flask & Spotify API</p>
-    </footer>
 
-    <script>
-        // Parse and render charts
-        var topArtistsData = JSON.parse({{ viz_top_artists | safe }});
-        Plotly.newPlot('top-artists-chart', topArtistsData.data, topArtistsData.layout);
-        
-        var topTracksData = JSON.parse({{ viz_top_tracks | safe }});
-        Plotly.newPlot('top-tracks-chart', topTracksData.data, topTracksData.layout);
-        
-        var genresData = JSON.parse({{ viz_genres | safe }});
-        Plotly.newPlot('genres-chart', genresData.data, genresData.layout);
-        
-        var listeningPatternsData = JSON.parse({{ viz_listening_patterns | safe }});
-        Plotly.newPlot('listening-patterns-chart', listeningPatternsData.data, listeningPatternsData.layout);
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
