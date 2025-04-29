@@ -168,7 +168,18 @@ def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists
         )
         visualizations['genres'] = json.dumps(fig_genres, cls=plotly.utils.PlotlyJSONEncoder)
     else:
-        fig_genres = px.pie(values=[], names=[], title='Your Top Genres')
+        # For empty data, create a simple placeholder pie chart with default data
+        empty_genres = pd.DataFrame({'genre': ['No data available'], 'count': [1]})
+        fig_genres = px.pie(empty_genres, 
+                           values='count', 
+                           names='genre', 
+                           title='Your Top Genres (No Data Available)',
+                           color_discrete_sequence=['#333333'])
+        fig_genres.update_layout(
+            plot_bgcolor='rgba(40,40,40,0.8)',
+            paper_bgcolor='rgba(40,40,40,0)',
+            font=dict(color='white')
+        )
         visualizations['genres'] = json.dumps(fig_genres, cls=plotly.utils.PlotlyJSONEncoder)
     
     # Create listening patterns chart comparing time periods
@@ -182,8 +193,8 @@ def create_visualizations(sp, top_artists_short, top_artists_medium, top_artists
     artist_counts = [short_term_count, medium_term_count, long_term_count]
     
     listening_df = pd.DataFrame({
-    'Time Period': time_periods,
-    'Number of Unique Artists': artist_counts
+        'Time Period': time_periods,
+        'Number of Unique Artists': artist_counts
     })
     
     fig_patterns = px.bar(
