@@ -13,9 +13,6 @@ import calendar
 from collections import Counter
 from dotenv import load_dotenv
 
-print(f"CLIENT_ID loaded: {os.getenv('SPOTIFY_CLIENT_ID') is not None}")
-print(f"CLIENT_SECRET loaded: {os.getenv('SPOTIFY_CLIENT_SECRET') is not None}")
-
 load_dotenv()  # Make sure environment variables are loaded
 
 app = Flask(__name__)
@@ -53,7 +50,6 @@ def callback():
     session["token_info"] = token_info
     return redirect('/visualize')
 
-# Add the missing visualize route
 @app.route('/visualize')
 def visualize():
     try:
@@ -62,9 +58,6 @@ def visualize():
         return redirect('/login')
     
     sp = spotipy.Spotify(auth=token_info['access_token'])
-    
-    # Get the current year
-    current_year = datetime.datetime.now().year
     
     try:
         # Get user's top artists for different time ranges
